@@ -79,7 +79,8 @@ class ListDataset(Dataset):
         # folder_path = "E:/TF_Code/PyTorch-YOLOv3-master/PyTorch-YOLOv3-master/data/image"
         self.img_files = sorted(glob.glob("%s/*.*" % list_path))
         self.label_files = [
-            path.replace("image", "labels").replace(".png", ".txt").replace(".jpg", ".txt")
+            path.replace("image", "label_txt").replace(".png", ".txt").replace(".jpg", ".txt")#smoke
+            # path.replace("image", "labels").replace(".png", ".txt").replace(".jpg", ".txt")#neu-det
             for path in self.img_files
         ]
 
@@ -116,6 +117,7 @@ class ListDataset(Dataset):
         label_path = self.label_files[index % len(self.img_files)].rstrip()
 
         # targets = None
+        # print(label_path)
         if os.path.exists(label_path):
             boxes =np.loadtxt(label_path).reshape(-1, 5)
             # print(boxes)
@@ -125,6 +127,8 @@ class ListDataset(Dataset):
             boxes[:, 2] =  (boxes[:, 2])/h
             boxes[:, 3] =  (boxes[:, 3])/w
             boxes[:, 4] =  (boxes[:, 4])/h
+        else:
+            print("error! countn't find label_path!")
 
 
 
@@ -207,13 +211,12 @@ class ListDataset(Dataset):
 
 if __name__ == "__main__":
 
-
-    train_path = '/home/ecust/gmy/PyTorch-YOLOv3(steel)/PyTorch-YOLOv3-master/data/NEU-DET/train/image'
-    valid_path = '/home/ecust/gmy/PyTorch-YOLOv3(steel)/PyTorch-YOLOv3-master/data/NEU-DET/valid/image'
+    train_path = '/home/ecust/txx/dataset/smoke/image/IR/real/IR_smoke_research_group/train/image'
+    valid_path = '/home/ecust/txx/dataset/smoke/image/IR/real/IR_smoke_research_group/valid/image'
     dataset = ListDataset(train_path, augment=True, multiscale=False)
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=1,
+        batch_size=2,
         shuffle=False,
         num_workers=0,
         pin_memory=True,

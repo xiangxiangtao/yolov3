@@ -9,3 +9,8 @@ weights/*.pth
 logs/
 __pycache__
 checkpoints
+weights/
+train_info/
+detection/
+data/
+

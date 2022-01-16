@@ -21,24 +21,55 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.ticker import NullLocator
 
+conf_thres=0.4#################################################################
+nms_thres=0.3
+
+test_path_composite = '/home/ecust/txx/dataset/gas/IR/composite/composite_gas_gmy_500_400/test/image'
+test_path_composite_1 = '/home/ecust/txx/dataset/gas/IR/composite/composite_gas_1_gmy_500_400/test/image'
+test_path_composite_2 = '/home/ecust/txx/dataset/gas/IR/composite/composite_gas_2_gmy_500_400/test/image'
+test_path_real_annotated = '/home/ecust/txx/dataset/gas/IR/real/real_annotated/test/image'
+test_path_real_annotated_1 = '/home/ecust/txx/dataset/gas/IR/real/real_annotated_1/test/image'
+test_path_real_annotated_gmy = '/home/ecust/txx/dataset/gas/IR/real/real_annotated_gmy/val/image'
+
+test_path_list1=[test_path_composite,test_path_composite_1,test_path_composite_2]
+test_path_list2=[test_path_real_annotated,test_path_real_annotated_1,test_path_real_annotated_gmy]
+
+test_path=test_path_composite_2##########################################################################################
+print("test_path=",test_path)
+
+# if test_path in test_path_list1:
+#   class_names=['gas']
+# elif test_path in test_path_list2:
+#   class_names=['smoke']
+# print("class_names=",class_names)
+
+weight_path="/home/ecust/txx/project/yolov3_txx/weights/yolov3_gas_composite_2_epoch6.pth"###########################
+
+dataset_name=test_path.split("/")[-3]
+print("dataset_name=",dataset_name)
+dataset_split=test_path.split("/")[-2]
+print("dataset_split=",dataset_split)
+output_folder_detection=r"detection/{}/{}/ConfThres{}_NmsThres{}".format(dataset_name,dataset_split,conf_thres,nms_thres)
+os.makedirs(output_folder_detection, exist_ok=True)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
+    parser.add_argument("--image_folder", type=str, default=test_path, help="path to dataset")
     parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
-    parser.add_argument("--weights_path", type=str, default="weights/yolov3_ckpt_415.pth", help="path to weights file")
-    parser.add_argument("--class_path", type=str, default="data/coco.names", help="path to class label file")
-    parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--weights_path", type=str, default=weight_path, help="path to weights file")
+    parser.add_argument("--class_path", type=str, default="data/smoke.names", help="path to class label file")
+    parser.add_argument("--conf_thres", type=float, default=conf_thres, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=nms_thres, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
     parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
     parser.add_argument("--img_size", type=int, default=320, help="size of each image dimension")
-    parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
+    # parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
     opt = parser.parse_args()
     print(opt)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    os.makedirs("output", exist_ok=True)
 
     # Set up model
     model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
@@ -59,7 +90,10 @@ if __name__ == "__main__":
         num_workers=opt.n_cpu,
     )
 
+    print("img_nums=",len(dataloader))
+
     classes = load_classes(opt.class_path)  # Extracts class labels from file
+    print("classes=",classes)
 
     Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
@@ -70,6 +104,13 @@ if __name__ == "__main__":
     print("\nPerforming object detection:")
     # prev_time = time.time()
     for batch_i, (img_paths, input_imgs) in enumerate(dataloader):
+        # print("-"*50)
+        # if batch_i>1:
+        #   break;
+
+        print("batch=",batch_i)
+        # print("img_path=",img_paths)
+
         # Configure input
         # input_imgs = Variable(input_imgs.type(Tensor))
         # print(batch_i)
@@ -86,29 +127,37 @@ if __name__ == "__main__":
         if  batch_i != 0:
             TIME += inference_time
         # prev_time = current_time
-        print("\t+ Batch %d, Inference Time: %s" % (batch_i, inference_time))
+        # print("\t+ Batch %d, Inference Time: %s" % (batch_i, inference_time))
 
         # Save image and detections
         imgs.extend(img_paths)
         img_detections.extend(detections)
 
-    print("FPS: %s" % (1/(TIME/5)))
+    print("FPS: %s" % (len(dataloader)/TIME))
     # Bounding-box colors
     cmap = plt.get_cmap("tab20b")
-    colors = [cmap(i) for i in np.linspace(0, 1, 6)]
+    # colors = [cmap(i) for i in np.linspace(0, 1, 6)]
+    colors = [(1, 1, 0)]
 
-    print("\nSaving images:")
+    print("\nSaving images...")
     # Iterate through images and save plot of detections
     for img_i, (path, detections) in enumerate(zip(imgs, img_detections)):
-
-        print("(%d) Image: '%s'" % (img_i, path))
+        # if img_i<3450:
+        #     continue
+        print("(%d) Image" % (img_i))
 
         # Create plot
-        img = np.array(Image.open(path))
+        img1 = np.array(Image.open(path).convert('L'))
+        # print(img1.shape)
+
+        img=np.zeros((img1.shape[0],img1.shape[1],3))
+        for i in range(3):
+          img[:,:,i]=img1
+        img=img.astype('uint8')
+
         plt.figure()
         fig, ax = plt.subplots(1)
         ax.imshow(img)
-
         # Draw bounding boxes and labels of detections
         if detections is not None:
             # Rescale boxes to original image
@@ -130,15 +179,15 @@ if __name__ == "__main__":
                 # color = bbox_colors[int(np.where(unique_labels == int(cls_pred))[0])]
                 color = colors[int(cls_pred)]
                 # Create a Rectangle patch
-                bbox = patches.Rectangle((x1, y1), box_w, box_h, linewidth=2, edgecolor=color, facecolor="none")
+                bbox = patches.Rectangle((x1, y1), box_w, box_h, linewidth=3, edgecolor=color, facecolor="none")
                 # Add the bbox to the plot
                 ax.add_patch(bbox)
                 # Add label
                 plt.text(
                     x1,
                     y1,
-                    s=classes[int(cls_pred)],
-                    color="white",
+                    s=classes[int(cls_pred)]+" {:.2f}".format(conf)+" {:.2f}".format(cls_conf),
+                    color="red",
                     verticalalignment="top",
                     bbox={"color": color, "pad": 0},
                 )
@@ -148,5 +197,7 @@ if __name__ == "__main__":
         plt.gca().xaxis.set_major_locator(NullLocator())
         plt.gca().yaxis.set_major_locator(NullLocator())
         filename = path.split("/")[-1].split(".")[0]
-        plt.savefig(f"output/{filename}.jpg", bbox_inches="tight", pad_inches=0.0)
+        # plt.show()
+        plt.savefig(os.path.join(output_folder_detection,"{}.png".format(filename)), bbox_inches="tight", pad_inches=0.0)
         plt.close()
+    print("end!")

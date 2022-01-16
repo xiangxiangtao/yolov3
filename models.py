@@ -18,9 +18,10 @@ def create_modules(module_defs):
     Constructs module list of layer blocks from module configuration in module_defs
     """
     hyperparams = module_defs.pop(0)
-    output_filters = [int(hyperparams["channels"])]
+    output_filters = [int(hyperparams["channels"])]# 迭代module_defs列表前，先获取模型的超参数
     module_list = nn.ModuleList()
     for module_i, module_def in enumerate(module_defs):
+        # 顺序容器.模块将按照顺序存进sequential中, 相当于一个包装起来的子模块集, 可以在forward中直接运行.
         modules = nn.Sequential()
 
         if module_def["type"] == "convolutional":
@@ -36,7 +37,7 @@ def create_modules(module_defs):
                     kernel_size=kernel_size,
                     stride=int(module_def["stride"]),
                     padding=pad,
-                    bias=not bn,
+                    bias=not bn,# 有BN不要bias，因为不起作用，而且占显卡内存
                 ),
             )
             if bn:
@@ -56,15 +57,18 @@ def create_modules(module_defs):
             upsample = Upsample(scale_factor=int(module_def["stride"]), mode="nearest")
             modules.add_module(f"upsample_{module_i}", upsample)
 
+        # 路由层仅仅涉及到特征图的拼接，没有多余的操作，因此在创建模块时使用一个不执行任何操作的模型层，在执行前向传播时完成拼接即可
         elif module_def["type"] == "route":
             layers = [int(x) for x in module_def["layers"].split(",")]
-            filters = sum([output_filters[1:][i] for i in layers])
+            filters = sum([output_filters[1:][i] for i in layers])        # 按深度拼接
             modules.add_module(f"route_{module_i}", EmptyLayer())
 
+        # 仅仅涉及到特征图的相加，也采用空白模型层的方式
         elif module_def["type"] == "shortcut":
             filters = output_filters[1:][int(module_def["from"])]
             modules.add_module(f"shortcut_{module_i}", EmptyLayer())
 
+        # yolo层，这一层保存了模型中的一些重要信息，如anchor，box尺寸，类别数量，图像尺寸
         elif module_def["type"] == "yolo":
             anchor_idxs = [int(x) for x in module_def["mask"].split(",")]
             # Extract anchors
@@ -232,7 +236,7 @@ class YOLOLayer(nn.Module):
 
             return output, total_loss
 
-
+# 当我们自己实现类的话，必须继承自nn.Module，并且在init中完成初始化的步骤和forward中完成计算图的前向构建的过程
 class Darknet(nn.Module):
     """YOLOv3 object detection model"""
 
@@ -345,3 +349,7 @@ class Darknet(nn.Module):
                 conv_layer.weight.data.cpu().numpy().tofile(fp)
 
         fp.close()
+
+# if __name__ == "__main__":
+#     module_list = create_modules(parse_model_config("./config/yolov3.cfg"))
+#     print(module_list)
