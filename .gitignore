@@ -1,16 +1,18 @@
 .idea/
 output/
-ground_truth/
-data/NEU-DET/train
-data/NEU-DET/valid
 data/samples/*.jpg
 weights/darknet53.conv.74
 weights/*.pth
-logs/
+logs/*
+!logs/.gitkeep
 __pycache__
-checkpoints
-weights/
+checkpoints/*
+!checkpoints/.gitkeep
+weights/*
+!weights/.gitkeep
 train_info/
-detection/
-data/
+detection/*
+!detection/.gitkeep
+data/dataset/*
+!data/dataset/.gitkeep
 
